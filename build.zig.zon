@@ -1,0 +1,14 @@
+.{
+    .name = .zig_sdl,
+    .version = "0.1.0-dev.1",
+    .fingerprint = 0x51d1eff9ab330457,
+    .minimum_zig_version = "0.15.1",
+    .dependencies = .{},
+
+    .paths = .{
+        "include",
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
