@@ -2,9 +2,22 @@
 
 Based on SDL3.2.28
 
-### Warning
+### Get started
+Clone SDL source.
+```
+git clone https://github.com/libsdl-org/SDL.git vendored/SDL
+```
 
-Place `SDL3.lib` into lib folder before using this.
+Build SDL3 from source.
+```
+cmake -S . -B build
+cmake --build build --config RelWithDebInfo
+cmake --install build --config RelWithDebInfo --prefix ..\..\sdl-out
+```
+
+Run `zig build`.
+
+Append `C:\SDL3\bin` to PATH.
 
 ### features
 
