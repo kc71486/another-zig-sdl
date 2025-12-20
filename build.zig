@@ -1,59 +1,59 @@
+// reference: https://codeberg.org/7Games/zig-sdl3
 pub fn build(b: *std.Build) void {
     // hyperparams
     const target = b.standardTargetOptions(.{});
     const optimize: std.builtin.OptimizeMode = b.standardOptimizeOption(.{});
 
+    // options
+    const preferred_linkage = b.option(
+        std.builtin.LinkMode,
+        "preferred_linkage",
+        "Prefer building statically or dynamically linked libraries (default: static)",
+    ) orelse .static;
+    const sdl_main = b.option(
+        bool,
+        "sdl_main",
+        "Use SDL provided main, doesn't really work when true (default: false)",
+    ) orelse false;
+
+    // dependencies
+    const dep_sdl = b.dependency("sdl", .{
+        .target = target,
+        .optimize = optimize,
+        .preferred_linkage = preferred_linkage,
+    });
+
+    // module c
+    const write_file = b.addWriteFiles();
+    const header = write_file.add(
+        "sdl_header.c",
+        b.fmt(
+            \\#include <SDL3/SDL.h>
+            \\
+            \\{s}
+            \\#include <SDL3/SDL_main.h>
+        , .{
+            if (sdl_main) "" else "#define SDL_MAIN_NOIMPL",
+        }),
+    );
     const translate_c = b.addTranslateC(.{
-        .root_source_file = b.path("src/sdl_header.c"),
+        .root_source_file = header,
         .target = target,
         .optimize = optimize,
     });
-    translate_c.addIncludePath(b.path("include"));
+    translate_c.addIncludePath(dep_sdl.path("include"));
     const module_c = translate_c.createModule();
 
+    // module sdl
     const module_sdl = b.addModule("sdl", .{
         .root_source_file = b.path("src/sdl.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "c", .module = module_c },
+        },
     });
-    module_sdl.addImport("c", module_c);
-    module_sdl.addLibraryPath(b.path("lib"));
-    module_sdl.linkSystemLibrary("SDL3", .{});
-
-    // steps
-    const copy_lib = CopyLib.create(b);
-
-    // dependencies
-    const step_install = b.getInstallStep();
-    step_install.dependOn(&copy_lib.step);
+    module_sdl.linkLibrary(dep_sdl.artifact("SDL3"));
 }
 
-// TODO only works in windows.
-const CopyLib = struct {
-    step: Step,
-
-    pub fn create(owner: *std.Build) *CopyLib {
-        const self = owner.allocator.create(CopyLib) catch @panic("OOM");
-        self.* = .{
-            .step = .init(.{
-                .id = .custom,
-                .name = owner.fmt("CopyLib", .{}),
-                .owner = owner,
-                .makeFn = make,
-            }),
-        };
-        return self;
-    }
-
-    fn make(step: *Step, options: Step.MakeOptions) !void {
-        _ = options;
-        const b = step.owner;
-        const root_dir = b.build_root.handle;
-        const path_src: []const u8 = "sdl-out/lib/SDL3.lib";
-        const path_dst: []const u8 = "lib/SDL3.lib";
-        try root_dir.copyFile(path_src, root_dir, path_dst, .{});
-    }
-};
-
 const std = @import("std");
-const Step = std.Build.Step;
