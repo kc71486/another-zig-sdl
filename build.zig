@@ -15,6 +15,11 @@ pub fn build(b: *std.Build) void {
         "sdl_main",
         "Use SDL provided main, doesn't really work when true (default: false)",
     ) orelse false;
+    const sdl_callback = b.option(
+        bool,
+        "sdl_callback",
+        "Use SDL provided callback, doesn't really work when true (default: false)",
+    ) orelse false;
 
     // dependencies
     const dep_sdl = b.dependency("sdl", .{
@@ -31,9 +36,11 @@ pub fn build(b: *std.Build) void {
             \\#include <SDL3/SDL.h>
             \\
             \\{s}
+            \\{s}
             \\#include <SDL3/SDL_main.h>
         , .{
             if (sdl_main) "" else "#define SDL_MAIN_NOIMPL",
+            if (sdl_callback) "#define SDL_MAIN_USE_CALLBACKS" else "",
         }),
     );
     const translate_c = b.addTranslateC(.{
