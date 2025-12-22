@@ -1,6 +1,6 @@
 .{
     .name = .zig_sdl,
-    .version = "0.1.0-dev.4",
+    .version = "0.1.0-dev.5",
     .fingerprint = 0x51d1eff9ab330457,
     .minimum_zig_version = "0.15.1",
     .dependencies = .{
