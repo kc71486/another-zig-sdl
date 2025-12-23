@@ -80,7 +80,7 @@ pub fn callbacks(comptime callbackfn: CallbackFn) ZigMainFn {
                 .windows => {},
                 else => @compileError("not supported"),
             };
-            const result = c.SDL_EnterAppMainCallbacks(
+            const result = callback.SDL_EnterAppMainCallbacks(
                 args.argc,
                 args.argv,
                 @ptrCast(callbackfn.init), // appdata is never null

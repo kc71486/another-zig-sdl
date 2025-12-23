@@ -48,6 +48,31 @@ pub fn build(b: *std.Build) void {
         },
     });
     module_sdl.linkLibrary(dep_sdl.artifact("SDL3"));
+
+    // module test
+    const module_test = b.createModule(.{
+        .root_source_file = b.path("src/test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    module_test.addImport("sdl", module_sdl);
+
+    // modules --> artifacts(compile)
+    const test_test = b.addTest(.{
+        .name = "test",
+        .root_module = module_test,
+    });
+
+    // artifacts(compile) --> steps
+    const install_test = b.addInstallArtifact(test_test, .{});
+    const run_test = b.addRunArtifact(test_test);
+
+    // steps and dependencies
+    const step_install = b.getInstallStep();
+    const step_test = b.step("test", "Do tests");
+    step_install.dependOn(&install_test.step);
+    step_test.dependOn(step_install);
+    step_test.dependOn(&run_test.step);
 }
 
 const std = @import("std");

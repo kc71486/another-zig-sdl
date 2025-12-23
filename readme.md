@@ -14,7 +14,7 @@ Add depencency to `build.zig.zon`.
 
 ### Main function
 
-Use `sdl.main.main_normal` or `sdl.main.main_callbacks` to wrap main.
+Use `sdl.main.normal()` or `sdl.main.callbacks()` to wrap main, For more info, see source.
 
 ### Features
 
