@@ -16,7 +16,7 @@ pub fn Atomic(T: type) type {
         }
 
         /// Get the value of an atomic variable.
-        pub fn get(self: *Self) T {
+        pub fn get(self: *const Self) T {
             return @atomicLoad(T, &self.value, .seq_cst);
         }
 

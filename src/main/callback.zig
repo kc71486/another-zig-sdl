@@ -4,7 +4,7 @@ var SDL_main_event_callback: c.SDL_AppEvent_func = null;
 var SDL_main_iteration_callback: c.SDL_AppIterate_func = null;
 var SDL_main_quit_callback: c.SDL_AppQuit_func = null;
 // use an atomic, since events might land from any thread and we don't want to wrap this all in a mutex. A CAS makes sure we only move from zero once.
-var apprc: c.SDL_AtomicInt = .{ .value = 0 };
+var apprc: Atomic(i32) = .{ .value = 0 };
 var SDL_main_appstate: ?*anyopaque = null;
 
 var callback_rate_increment: u32 = 0;
@@ -25,8 +25,8 @@ fn ShouldDispatchImmediately(event: *c.SDL_Event) bool {
 }
 
 fn SDL_DispatchMainCallbackEvent(event: *c.SDL_Event) void {
-    if (c.SDL_GetAtomicInt(&apprc) == c.SDL_APP_CONTINUE) { // if already quitting, don't send the event to the app.
-        _ = c.SDL_CompareAndSwapAtomicInt(&apprc, c.SDL_APP_CONTINUE, @intCast(SDL_main_event_callback.?(SDL_main_appstate, event)));
+    if (apprc.get() == c.SDL_APP_CONTINUE) { // if already quitting, don't send the event to the app.
+        _ = apprc.compareAndSwap(c.SDL_APP_CONTINUE, @intCast(SDL_main_event_callback.?(SDL_main_appstate, event)));
     }
 }
 
@@ -57,7 +57,7 @@ fn SDL_MainCallbackEventWatcher(userdata: ?*anyopaque, event: ?*c.SDL_Event) cal
 
         // Make sure that we quit if we get a terminating event
         if (event.?.*.type == c.SDL_EVENT_TERMINATING) {
-            _ = c.SDL_CompareAndSwapAtomicInt(&apprc, c.SDL_APP_CONTINUE, c.SDL_APP_SUCCESS);
+            _ = apprc.compareAndSwap(c.SDL_APP_CONTINUE, c.SDL_APP_SUCCESS);
         }
     } else {
         // We'll process this event later from the main event queue
@@ -80,24 +80,24 @@ pub fn SDL_InitMainCallbacks(
     SDL_main_iteration_callback = appiter;
     SDL_main_event_callback = appevent;
     SDL_main_quit_callback = appquit;
-    _ = c.SDL_SetAtomicInt(&apprc, c.SDL_APP_CONTINUE);
+    _ = apprc.set(c.SDL_APP_CONTINUE);
 
     const rc: c.SDL_AppResult = appinit.?(&SDL_main_appstate, argc, argv);
     // bounce if SDL_AppInit already said abort, otherwise...
-    if (c.SDL_CompareAndSwapAtomicInt(&apprc, c.SDL_APP_CONTINUE, @intCast(rc)) and (rc == c.SDL_APP_CONTINUE)) {
+    if (apprc.compareAndSwap(c.SDL_APP_CONTINUE, @intCast(rc)) and (rc == c.SDL_APP_CONTINUE)) {
         // make sure we definitely have events initialized, even if the app didn't do it.
         if (!c.SDL_InitSubSystem(c.SDL_INIT_EVENTS)) {
-            _ = c.SDL_SetAtomicInt(&apprc, c.SDL_APP_FAILURE);
+            _ = apprc.set(c.SDL_APP_FAILURE);
             return c.SDL_APP_FAILURE;
         }
 
         if (!c.SDL_AddEventWatch(SDL_MainCallbackEventWatcher, null)) {
-            _ = c.SDL_SetAtomicInt(&apprc, c.SDL_APP_FAILURE);
+            _ = apprc.set(c.SDL_APP_FAILURE);
             return c.SDL_APP_FAILURE;
         }
     }
 
-    return @intCast(c.SDL_GetAtomicInt(&apprc));
+    return @intCast(apprc.get());
 }
 
 pub fn SDL_IterateMainCallbacks(pump_events: bool) callconv(.c) c.SDL_AppResult {
@@ -106,11 +106,11 @@ pub fn SDL_IterateMainCallbacks(pump_events: bool) callconv(.c) c.SDL_AppResult 
     }
     SDL_DispatchMainCallbackEvents();
 
-    var rc: c.SDL_AppResult = @intCast(c.SDL_GetAtomicInt(&apprc));
+    var rc: c.SDL_AppResult = @intCast(apprc.get());
     if (rc == c.SDL_APP_CONTINUE) {
         rc = SDL_main_iteration_callback.?(SDL_main_appstate);
-        if (!c.SDL_CompareAndSwapAtomicInt(&apprc, c.SDL_APP_CONTINUE, @intCast(rc))) {
-            rc = @intCast(c.SDL_GetAtomicInt(&apprc)); // something else already set a quit result, keep that.
+        if (!apprc.compareAndSwap(c.SDL_APP_CONTINUE, @intCast(rc))) {
+            rc = @intCast(apprc.get()); // something else already set a quit result, keep that.
         }
     }
     return rc;
@@ -196,4 +196,5 @@ const std = @import("std");
 
 const sdl = @import("../sdl.zig");
 const mainFn = sdl.mainFn;
+const Atomic = sdl.Atomic;
 const c = sdl.c;
