@@ -11,8 +11,8 @@ var callback_rate_increment: u32 = 0;
 var iterate_after_waitevent: bool = false;
 
 // Return true if this event needs to be processed before returning from the event watcher
-fn ShouldDispatchImmediately(event: [*c]c.SDL_Event) callconv(.c) bool {
-    switch (event.?.*.type) {
+fn ShouldDispatchImmediately(event: *c.SDL_Event) bool {
+    switch (event.type) {
         c.SDL_EVENT_TERMINATING,
         c.SDL_EVENT_LOW_MEMORY,
         c.SDL_EVENT_WILL_ENTER_BACKGROUND,
@@ -24,13 +24,13 @@ fn ShouldDispatchImmediately(event: [*c]c.SDL_Event) callconv(.c) bool {
     }
 }
 
-fn SDL_DispatchMainCallbackEvent(event: [*c]c.SDL_Event) callconv(.c) void {
+fn SDL_DispatchMainCallbackEvent(event: *c.SDL_Event) void {
     if (c.SDL_GetAtomicInt(&apprc) == c.SDL_APP_CONTINUE) { // if already quitting, don't send the event to the app.
-        _ = c.SDL_CompareAndSwapAtomicInt(&apprc, c.SDL_APP_CONTINUE, @intCast(SDL_main_event_callback.?(SDL_main_appstate, event.?)));
+        _ = c.SDL_CompareAndSwapAtomicInt(&apprc, c.SDL_APP_CONTINUE, @intCast(SDL_main_event_callback.?(SDL_main_appstate, event)));
     }
 }
 
-fn SDL_DispatchMainCallbackEvents() callconv(.c) void {
+fn SDL_DispatchMainCallbackEvents() void {
     var events: [16]c.SDL_Event = undefined;
 
     while (true) {
@@ -47,12 +47,13 @@ fn SDL_DispatchMainCallbackEvents() callconv(.c) void {
     }
 }
 
-fn SDL_MainCallbackEventWatcher(userdata: ?*anyopaque, event: [*c]c.SDL_Event) callconv(.c) bool {
+// still need callconv(.c) because it is callback
+fn SDL_MainCallbackEventWatcher(userdata: ?*anyopaque, event: ?*c.SDL_Event) callconv(.c) bool {
     _ = userdata;
-    if (ShouldDispatchImmediately(event)) {
+    if (ShouldDispatchImmediately(event.?)) {
         // Make sure any currently queued events are processed then dispatch this before continuing
         SDL_DispatchMainCallbackEvents();
-        SDL_DispatchMainCallbackEvent(event);
+        SDL_DispatchMainCallbackEvent(event.?);
 
         // Make sure that we quit if we get a terminating event
         if (event.?.*.type == c.SDL_EVENT_TERMINATING) {
@@ -194,4 +195,5 @@ pub fn SDL_EnterAppMainCallbacks(
 const std = @import("std");
 
 const sdl = @import("../sdl.zig");
+const mainFn = sdl.mainFn;
 const c = sdl.c;

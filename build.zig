@@ -58,9 +58,21 @@ pub fn build(b: *std.Build) void {
     module_test.addImport("sdl", module_sdl);
 
     // modules --> artifacts(compile)
+    const lib_sdl = b.addLibrary(.{
+        .linkage = .static,
+        .name = "sdl",
+        .root_module = module_sdl,
+    });
     const test_test = b.addTest(.{
         .name = "test",
         .root_module = module_test,
+    });
+
+    // docs(step)
+    const docs = b.addInstallDirectory(.{
+        .source_dir = lib_sdl.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
     });
 
     // artifacts(compile) --> steps
@@ -70,9 +82,12 @@ pub fn build(b: *std.Build) void {
     // steps and dependencies
     const step_install = b.getInstallStep();
     const step_test = b.step("test", "Do tests");
+    const step_docs = b.step("docs", "Generate documentation");
     step_install.dependOn(&install_test.step);
     step_test.dependOn(step_install);
     step_test.dependOn(&run_test.step);
+    step_docs.dependOn(step_test);
+    step_docs.dependOn(&docs.step);
 }
 
 const std = @import("std");

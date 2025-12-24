@@ -5,14 +5,14 @@
 //! Using main requires passing CMainFn.
 //! Usage:
 //! ```
-//! pub const main = sdl.main.main(c_main);
+//! pub const main = sdl.mainFn.main(c_main);
 //! pub fn c_main(argc: c_int, argv: [*c][*c]u8) callconv(.c) c_int { ... }
 //! ```
 //!
 //! Using callbacks requires passing appInit, appIterate, appEvent, appQuit.
 //! Usage:
 //! ```
-//! pub const main = sdl.main.callbacks(.{
+//! pub const main = sdl.mainFn.callbacks(.{
 //!     .init = appInit,
 //!     .iterate = appIterate,
 //!     .event = appEvent,
